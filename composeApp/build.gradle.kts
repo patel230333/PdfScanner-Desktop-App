@@ -20,6 +20,9 @@ kotlin {
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
 
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.6.0")
+
+
             implementation("io.ktor:ktor-client-core:2.3.7")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
@@ -52,15 +55,17 @@ compose.desktop {
             packageVersion = "1.0.0"
 
 
-//            windows{
-//                iconFile.set(project.file("composeApp/src/jvmMain/composeResources/files/appicon.ico"))
-//            }
-//            macOS {
-//                iconFile.set(project.file("${project.projectDir}/composeApp/src/jvmMain/composeResources/files/appicon.icns"))
-//            }
-//            linux {
-//                iconFile.set(project.file("composeApp/src/jvmMain/composeResources/files/appicon.png"))
-//            }
+            val iconPath = "composeApp/src/jvmMain/composeResources/files/"
+
+            windows {
+                iconFile.set(file("src/jvmMain/composeResources/files/appicon.ico"))
+            }
+            macOS {
+                iconFile.set(file("src/jvmMain/composeResources/files/appicon.icns"))
+            }
+            linux {
+                iconFile.set(file("src/jvmMain/composeResources/files/appicon.png"))
+            }
         }
     }
 }
