@@ -44,9 +44,23 @@ compose.desktop {
             buildTypes.release.proguard { isEnabled = false }
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats( TargetFormat.Msi,
+                TargetFormat.Dmg,
+                TargetFormat.Deb,
+                TargetFormat.Exe)
             packageName = "pdfdesktop"
             packageVersion = "1.0.0"
+
+
+//            windows{
+//                iconFile.set(project.file("composeApp/src/jvmMain/composeResources/files/appicon.ico"))
+//            }
+//            macOS {
+//                iconFile.set(project.file("${project.projectDir}/composeApp/src/jvmMain/composeResources/files/appicon.icns"))
+//            }
+//            linux {
+//                iconFile.set(project.file("composeApp/src/jvmMain/composeResources/files/appicon.png"))
+//            }
         }
     }
 }
