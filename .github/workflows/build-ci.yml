@@ -1,19 +1,30 @@
-name: Build Windows Installer
+name: 🔥 Build Windows Installer (.exe + .msi)
 
-on: [push]
+on:
+  push:
+    branches: [ master ]    # Runs on push to master
 
 jobs:
   build-win:
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - run: ./gradlew packageReleaseMsi packageReleaseExe
 
-      - uses: actions/upload-artifact@v3
+    steps:
+      - name: 📥 Checkout Source
+        uses: actions/checkout@v4
+
+      - name: 🔧 Install JDK
+        uses: actions/setup-java@v4
         with:
-          name: windows-builds
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: 🚀 Build Windows Installers
+        run: |
+          ./gradlew packageReleaseMsi
+          ./gradlew packageReleaseExe
+
+      - name: 📦 Upload Windows Artifacts
+        uses: actions/upload-artifact@v4   # 🔥 updated version
+        with:
+          name: PDFScanner-Windows-Builds
           path: composeApp/build/compose/binaries/main-release/
