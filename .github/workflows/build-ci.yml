@@ -1,0 +1,19 @@
+name: Build Windows Installer
+
+on: [push]
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - run: ./gradlew packageReleaseMsi packageReleaseExe
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows-builds
+          path: composeApp/build/compose/binaries/main-release/

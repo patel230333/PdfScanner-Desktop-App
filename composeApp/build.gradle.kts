@@ -40,6 +40,9 @@ compose.desktop {
     application {
         mainClass = "org.example.project.MainKt"
 
+
+            buildTypes.release.proguard { isEnabled = false }
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "pdfdesktop"
