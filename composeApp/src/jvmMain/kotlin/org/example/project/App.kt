@@ -4,211 +4,189 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.swing.JFileChooser
 
-
 import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import java.io.File
-
-// ---------- NETWORK CLIENT (FULL FIXED) ----------
-
-import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
-import io.ktor.client.statement.*
+import io.ktor.client.call.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.*
+
 
 
 @kotlinx.serialization.Serializable
 data class PdfInfo(val name: String, val size: Long)
 
-// ---------- MAIN ----------
 fun main() = application {
-    Window(onCloseRequest = ::exitApplication, title = "📄 PDF Sync Desktop") {
-        PdfDesktopApp()
+    Window(onCloseRequest = ::exitApplication, title = "PDF Desktop Sync") {
+        PdfApp()
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PdfDesktopApp() {
+fun PdfApp() {
     val scope = rememberCoroutineScope()
 
     var ip by remember { mutableStateOf("") }
-    var devicePdfs by remember { mutableStateOf(emptyList<PdfInfo>()) }
-    var vaultPdfs by remember { mutableStateOf(emptyList<PdfInfo>()) }
+    var device by remember { mutableStateOf<List<PdfInfo>>(emptyList()) }
+    var vault by remember { mutableStateOf<List<PdfInfo>>(emptyList()) }
     var status by remember { mutableStateOf("Idle") }
 
-    val downloadDir = File("PDF-Downloads").apply { mkdirs() }
+    val downloadDir = File("Downloads-PC").apply { mkdirs() }
 
-    MaterialTheme {
-        Column(Modifier.padding(18.dp)) {
+    Column(Modifier.padding(20.dp)) {
 
-            OutlinedTextField(
-                value = ip,
-                onValueChange = { ip = it },
-                label = { Text("Enter Phone IP (Example: 10.247.207.18:8080)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+        OutlinedTextField(
+            value = ip,
+            onValueChange = { ip = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Enter phone IP: 10.247.207.18:8080") }
+        )
 
-            Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
-            Button(
-                onClick = {
-                    scope.launch {
-                        try {
-                            devicePdfs = getDevicePdfs(ip)
-                            vaultPdfs = getVaultPdfs(ip)
-                            status = "Connected ✓ Loaded ${devicePdfs.size + vaultPdfs.size} PDFs"
-                        } catch (e: Exception) {
-                            status = "❌ Error: ${e.message}"
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Connect & Load PDFs") }
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(Modifier.fillMaxSize()) {
-
-                // ========= DEVICE ==========
-                Column(Modifier.weight(1f)) {
-                    Text("📁 Device PDFs", style = MaterialTheme.typography.titleLarge)
-                    LazyColumn {
-                        items(devicePdfs) { pdf ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(pdf.name)
-                                Button(onClick = {
-                                    scope.launch {
-                                        downloadPdf(ip, pdf.name, downloadDir)
-                                        status = "Saved → ${downloadDir.absolutePath}"
-                                    }
-                                }) { Text("⬇ Download") }
-                            }
-                        }
+        Button(
+            onClick = {
+                scope.launch {
+                    try {
+                        device = getDevice(ip)
+                        vault = getVault(ip)
+                        status = "Connected ✔ Total PDFs = ${device.size + vault.size}"
+                    } catch (e: Exception) {
+                        status = "❌ ${e.message}"
                     }
                 }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Connect") }
 
-                Spacer(Modifier.width(18.dp))
+        Spacer(Modifier.height(20.dp))
 
-                // ========= VAULT ==========
-                Column(Modifier.weight(1f)) {
-                    Text("🔐 Vault PDFs", style = MaterialTheme.typography.titleLarge)
-                    LazyColumn {
-                        items(vaultPdfs) { pdf ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(pdf.name)
-                                Button(onClick = {
-                                    scope.launch {
-                                        downloadPdf(ip, pdf.name, downloadDir)
-                                        status = "Saved → ${downloadDir.absolutePath}"
+        Row(Modifier.fillMaxWidth()) {
+
+            // ========================================================= DEVICE PDFs
+            Column(Modifier.weight(1f)) {
+                Text("📂 Device PDFs")
+                LazyColumn {
+                    items(device) { pdf ->
+                        Row(Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(pdf.name)
+
+                            Button(
+                                onClick = {
+                                    scope.launch { // <── FIX HERE
+                                        download(ip, pdf.name, downloadDir) { status = it }
                                     }
-                                }) { Text("⬇ Download") }
-                            }
+                                }
+                            ) { Text("Download") }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.width(20.dp))
 
-            // ========= UPLOAD ==========
-            Button(
-                onClick = {
-                    val chooser = JFileChooser()
-                    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                        scope.launch {
-                            uploadToDevice(ip, chooser.selectedFile)
-                            devicePdfs = getDevicePdfs(ip)
-                            status = "📤 Uploaded to Device"
+            // ========================================================= VAULT PDFs
+            Column(Modifier.weight(1f)) {
+                Text("🔐 Vault PDFs")
+                LazyColumn {
+                    items(vault) { pdf ->
+                        Row(Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(pdf.name)
+
+                            Button(
+                                onClick = {
+                                    scope.launch { // <── FIX HERE
+                                        download(ip, pdf.name, downloadDir) { status = it }
+                                    }
+                                }
+                            ) { Text("Download") }
                         }
                     }
-                }, modifier = Modifier.fillMaxWidth()
-            ) { Text("Upload → DEVICE") }
-
-            Button(
-                onClick = {
-                    val chooser = JFileChooser()
-                    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                        scope.launch {
-                            uploadToVault(ip, chooser.selectedFile)
-                            vaultPdfs = getVaultPdfs(ip)
-                            status = "📤 Uploaded to Vault"
-                        }
-                    }
-                }, modifier = Modifier.fillMaxWidth()
-            ) { Text("Upload → VAULT") }
-
-            Spacer(Modifier.height(10.dp))
-            Text("Status: $status")
+                }
+            }
         }
+
+        Spacer(Modifier.height(20.dp))
+
+        // ==================== Upload Device
+        Button(
+            onClick = {
+                pickFile { file ->
+                    scope.launch { // <── FIX HERE
+                        upload(ip, file, "device")
+                        device = getDevice(ip)
+                        status = "Uploaded → Device ✓"
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Upload to DEVICE") }
+
+
+        // ==================== Upload Vault
+        Button(
+            onClick = {
+                pickFile { file ->
+                    scope.launch {
+                        upload(ip, file, "vault")
+                        vault = getVault(ip)
+                        status = "Uploaded → Vault ✓"
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Upload to VAULT") }
+
+        Spacer(Modifier.height(10.dp))
+        Text("STATUS: $status")
     }
 }
-
-
-
-
+// ============================================
+// NETWORK CLIENT (fixed + final)
+// ============================================
 
 val client = HttpClient(CIO) {
-    install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true })
-    }
+    install(Logging) { level = LogLevel.ALL }                 // Show logs ✔
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys=true}) }
 }
 
-// Auto port fix -> allows typing just IP
-private fun url(ip: String) = if (ip.contains(":")) "http://$ip" else "http://$ip:8080"
+private fun U(ip:String)= if(ip.contains(":"))"http://$ip" else {" http://$ip:8080"}
 
-// ---- API Calls ----
-suspend fun getDevicePdfs(ip: String) =
-    client.get("${url(ip)}/pdfs/device").body<List<PdfInfo>>()
+// GET
+suspend fun getDevice(ip:String)= client.get("${U(ip)}/pdfs/device").body<List<PdfInfo>>()
+suspend fun getVault(ip:String)= client.get("${U(ip)}/pdfs/vault").body<List<PdfInfo>>()
 
-suspend fun getVaultPdfs(ip: String) =
-    client.get("${url(ip)}/pdfs/vault").body<List<PdfInfo>>()
-
-suspend fun downloadPdf(ip: String, name: String, folder: File) {
-    val bytes = client.get("${url(ip)}/pdfs/download/$name").body<ByteArray>()
-    folder.resolve(name).writeBytes(bytes)
+// DOWNLOAD
+suspend fun download(ip:String,name:String,dir:File,cb:(String)->Unit){
+    val data = client.get("${U(ip)}/pdfs/download/$name").body<ByteArray>()
+    dir.resolve(name).writeBytes(data)
+    cb("Saved → ${dir.absolutePath}")
 }
 
-suspend fun uploadToDevice(ip: String, file: File) = upload(ip, file, "device")
-suspend fun uploadToVault(ip: String, file: File) = upload(ip, file, "vault")
+// UPLOAD
+suspend fun upload(ip:String,file:File,loc:String)= client.post("${U(ip)}/pdfs/upload/$loc") {
+    setBody(MultiPartFormDataContent(
+        formData { append("file",file.readBytes(),Headers.build {
+            append(HttpHeaders.ContentDisposition,"filename=${file.name}")
+        }) }
+    ))
+}
 
-private suspend fun upload(ip: String, file: File, location: String) {
-    client.post("${url(ip)}/pdfs/upload/$location") {
-        setBody(
-            MultiPartFormDataContent(
-                formData {
-                    append("file", file.readBytes(), Headers.build {
-                        append(HttpHeaders.ContentDisposition, "filename=${file.name}")
-                        append(HttpHeaders.ContentType, "application/pdf")
-                    })
-                }
-            )
-        )
+// OPEN FILE PICKER
+fun pickFile(onPick:(File)->Unit){
+    JFileChooser().apply {
+        if(showOpenDialog(null)==JFileChooser.APPROVE_OPTION) onPick(selectedFile)
     }
 }
