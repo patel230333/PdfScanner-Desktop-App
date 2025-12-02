@@ -52,14 +52,6 @@ import org.example.project.network.upload
 @kotlinx.serialization.Serializable
 data class PdfInfo(val name: String, val size: Long)
 
-fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "PDF Desktop Sync"
-    ) {
-        PdfApp()
-    }
-}
 
 @Composable
 fun PdfApp() {
@@ -128,186 +120,194 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            verticalArrangement = Arrangement. spacedBy(16.dp)
-        ) {
-            // Connection Card
-            Card(
-                modifier = Modifier. fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
+
+        LazyColumn {
+            item {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement. spacedBy(12.dp)
-                ) {
-                    Text(
-                        "Connection",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = ip,
-                        onValueChange = { ip = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Server IP Address") },
-                        placeholder = { Text("10.247. 207.18:8080") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Phone, contentDescription = "Phone")
-                        },
-                        singleLine = true,
-                        enabled = ! isLoading
-                    )
-
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                isLoading = true
-                                try {
-                                    device = getDevice(ip)
-                                    vault = getVault(ip)
-                                    val total = device.size + vault.size
-                                    status = "Connected successfully! Total PDFs: $total"
-                                    statusType = StatusType.SUCCESS
-                                    isConnected = true
-                                } catch (e: Exception) {
-                                    status = "Connection failed: ${e.message}"
-                                    statusType = StatusType.ERROR
-                                    isConnected = false
-                                } finally {
-                                    isLoading = false
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(). height(50.dp),
-                        enabled = ! isLoading && ip.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement. spacedBy(16.dp)
+                )
+                {
+                    // Connection Card
+                    Card(
+                        modifier = Modifier. fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement. spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Connection",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        } else {
-                            Icon(Icons.Default.Cable, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Connect to Device", style = MaterialTheme.typography.bodyLarge)
+
+                            OutlinedTextField(
+                                value = ip,
+                                onValueChange = { ip = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Server IP Address") },
+                                placeholder = { Text("10.247. 207.18:8080") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Phone, contentDescription = "Phone")
+                                },
+                                singleLine = true,
+                                enabled = ! isLoading
+                            )
+
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isLoading = true
+                                        try {
+                                            device = getDevice(ip)
+                                            vault = getVault(ip)
+                                            val total = device.size + vault.size
+                                            status = "Connected successfully! Total PDFs: $total"
+                                            statusType = StatusType.SUCCESS
+                                            isConnected = true
+                                        } catch (e: Exception) {
+                                            status = "Connection failed: ${e.message}"
+                                            statusType = StatusType.ERROR
+                                            isConnected = false
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(). height(50.dp),
+                                enabled = ! isLoading && ip.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Cable, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Connect to Device", style = MaterialTheme.typography.bodyLarge)
+                                }
+                            }
                         }
                     }
-                }
-            }
 
-            // Status Card
-            AnimatedVisibility(visible = status.isNotEmpty()) {
-                StatusCard(status, statusType)
-            }
+                    // Status Card
+                    AnimatedVisibility(visible = status.isNotEmpty()) {
+                        StatusCard(status, statusType)
+                    }
 
-            // PDFs Section
-            AnimatedVisibility(visible = isConnected) {
-                Row(
-                    modifier = Modifier. fillMaxWidth(). weight(1f),
-                    horizontalArrangement = Arrangement. spacedBy(16.dp)
-                ) {
-                    // Device PDFs
-                    PdfListCard(
-                        title = "Device PDFs",
-                        icon = Icons.Default.PhoneAndroid,
-                        pdfs = device,
-                        modifier = Modifier.weight(1f),
-                        onDownload = { pdf ->
-                            scope.launch {
-                                download(ip, pdf.name, downloadDir) {
-                                    status = it
-                                    statusType = StatusType.INFO
-                                }
-                            }
-                        }
-                    )
-
-                    // Vault PDFs
-                    PdfListCard(
-                        title = "Vault PDFs",
-                        icon = Icons.Default.Lock,
-                        pdfs = vault,
-                        modifier = Modifier.weight(1f),
-                        onDownload = { pdf ->
-                            scope.launch {
-                                download(ip, pdf. name, downloadDir) {
-                                    status = it
-                                    statusType = StatusType.INFO
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-
-            // Upload Section
-            AnimatedVisibility(visible = isConnected) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Upload to Device
-                    OutlinedButton(
-                        onClick = {
-                            pickFile { file ->
-                                scope.launch {
-                                    try {
-                                        upload(ip, file, "device")
-                                        device = getDevice(ip)
-                                        status = "Uploaded to Device successfully!"
-                                        statusType = StatusType.SUCCESS
-                                    } catch (e: Exception) {
-                                        status = "Upload failed: ${e.message}"
-                                        statusType = StatusType.ERROR
+                    // PDFs Section
+                    AnimatedVisibility(visible = isConnected) {
+                        Row(
+                            modifier = Modifier. fillMaxWidth(). weight(1f),
+                            horizontalArrangement = Arrangement. spacedBy(16.dp)
+                        ) {
+                            // Device PDFs
+                            PdfListCard(
+                                title = "Device PDFs",
+                                icon = Icons.Default.PhoneAndroid,
+                                pdfs = device,
+                                modifier = Modifier.weight(1f),
+                                onDownload = { pdf ->
+                                    scope.launch {
+                                        download(ip, pdf.name, downloadDir) {
+                                            status = it
+                                            statusType = StatusType.INFO
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        modifier = Modifier.weight(1f). height(50.dp)
-                    ) {
-                        Icon(Icons.Default.Upload, contentDescription = null)
-                        Spacer(Modifier. width(8.dp))
-                        Text("Upload to Device")
-                    }
+                            )
 
-                    // Upload to Vault
-                    Button(
-                        onClick = {
-                            pickFile { file ->
-                                scope.launch {
-                                    try {
-                                        upload(ip, file, "vault")
-                                        vault = getVault(ip)
-                                        status = "Uploaded to Vault successfully!"
-                                        statusType = StatusType.SUCCESS
-                                    } catch (e: Exception) {
-                                        status = "Upload failed: ${e.message}"
-                                        statusType = StatusType.ERROR
+                            // Vault PDFs
+                            PdfListCard(
+                                title = "Vault PDFs",
+                                icon = Icons.Default.Lock,
+                                pdfs = vault,
+                                modifier = Modifier.weight(1f),
+                                onDownload = { pdf ->
+                                    scope.launch {
+                                        download(ip, pdf. name, downloadDir) {
+                                            status = it
+                                            statusType = StatusType.INFO
+                                        }
                                     }
                                 }
+                            )
+                        }
+                    }
+
+                    // Upload Section
+                    AnimatedVisibility(visible = isConnected) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Upload to Device
+                            OutlinedButton(
+                                onClick = {
+                                    pickFile { file ->
+                                        scope.launch {
+                                            try {
+                                                upload(ip, file, "device")
+                                                device = getDevice(ip)
+                                                status = "Uploaded to Device successfully!"
+                                                statusType = StatusType.SUCCESS
+                                            } catch (e: Exception) {
+                                                status = "Upload failed: ${e.message}"
+                                                statusType = StatusType.ERROR
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f). height(50.dp)
+                            ) {
+                                Icon(Icons.Default.Upload, contentDescription = null)
+                                Spacer(Modifier. width(8.dp))
+                                Text("Upload to Device")
                             }
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp)
-                    ) {
-                        Icon(Icons.Default.Lock, contentDescription = null)
-                        Spacer(Modifier. width(8.dp))
-                        Text("Upload to Vault")
+
+                            // Upload to Vault
+                            Button(
+                                onClick = {
+                                    pickFile { file ->
+                                        scope.launch {
+                                            try {
+                                                upload(ip, file, "vault")
+                                                vault = getVault(ip)
+                                                status = "Uploaded to Vault successfully!"
+                                                statusType = StatusType.SUCCESS
+                                            } catch (e: Exception) {
+                                                status = "Upload failed: ${e.message}"
+                                                statusType = StatusType.ERROR
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(50.dp)
+                            ) {
+                                Icon(Icons.Default.Lock, contentDescription = null)
+                                Spacer(Modifier. width(8.dp))
+                                Text("Upload to Vault")
+                            }
+                        }
                     }
                 }
             }
+
         }
+
     }
 }
 
@@ -497,7 +497,7 @@ fun formatFileSize(bytes: Long): String {
     return when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> "%. 2f MB".format(bytes / (1024.0 * 1024.0))
+        else -> "%.2f MB".format(bytes / (1024.0 * 1024.0))
     }
 }
 
