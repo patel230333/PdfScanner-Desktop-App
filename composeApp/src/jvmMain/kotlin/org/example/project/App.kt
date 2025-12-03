@@ -1,9 +1,9 @@
 package org.example.project
 
 import androidx.compose.animation.*
-import androidx.compose.foundation. layout.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
-import androidx. compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.CheckCircle
@@ -28,25 +28,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx. compose.ui.window.Window
+import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.swing.JFileChooser
 
-import io.ktor. client.*
+import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor. client.plugins.logging.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
-import io.ktor. client.request.forms.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.call.*
-import io.ktor. http.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.*
-import org.example.project.network.download
+import org.example.project.network.client
 import org.example.project.network.getDevice
 import org.example.project.network.getVault
+import org.example.project.network.saveFile
 import org.example.project.network.upload
 
 @kotlinx.serialization.Serializable
@@ -62,7 +63,7 @@ fun PdfApp() {
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme. colorScheme.background
+            color = MaterialTheme.colorScheme.background
         ) {
             PdfSyncContent(
                 isDarkMode = isDarkMode,
@@ -100,7 +101,7 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                         Spacer(Modifier.width(12.dp))
                         Text(
                             "PDF Desktop Sync",
-                            style = MaterialTheme.typography. headlineSmall,
+                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -128,12 +129,12 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                         .fillMaxSize()
                         .padding(padding)
                         .padding(24.dp),
-                    verticalArrangement = Arrangement. spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 )
                 {
                     // Connection Card
                     Card(
-                        modifier = Modifier. fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
@@ -141,7 +142,7 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement. spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
                                 "Connection",
@@ -160,7 +161,7 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                     Icon(Icons.Default.Phone, contentDescription = "Phone")
                                 },
                                 singleLine = true,
-                                enabled = ! isLoading
+                                enabled = !isLoading
                             )
 
                             Button(
@@ -183,8 +184,8 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth(). height(50.dp),
-                                enabled = ! isLoading && ip.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                enabled = !isLoading && ip.isNotBlank(),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
@@ -197,22 +198,25 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                 } else {
                                     Icon(Icons.Default.Cable, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Connect to Device", style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "Connect to Device",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
                                 }
                             }
                         }
                     }
 
                     // Status Card
-                    AnimatedVisibility(visible = status.isNotEmpty()) {
+                    AnimatedVisibility(visible = status.isNotEmpty() ) {
                         StatusCard(status, statusType)
                     }
 
                     // PDFs Section
                     AnimatedVisibility(visible = isConnected) {
                         Row(
-                            modifier = Modifier. fillMaxWidth(). weight(1f),
-                            horizontalArrangement = Arrangement. spacedBy(16.dp)
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Device PDFs
                             PdfListCard(
@@ -222,9 +226,25 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                 modifier = Modifier.weight(1f),
                                 onDownload = { pdf ->
                                     scope.launch {
-                                        download(ip, pdf.name, downloadDir) {
-                                            status = it
-                                            statusType = StatusType.INFO
+                                        saveFile(pdf.name) { file ->
+                                            if (file != null) {
+                                                try {
+                                                    scope.launch {
+
+                                                        val data =
+                                                            client.get("${(ip)}/pdfs/download/${pdf.name}")
+                                                                .body<ByteArray>()
+                                                        file.writeBytes(data)
+
+                                                    }
+
+                                                    status = "Saved to ${file.absolutePath}"
+                                                    statusType = StatusType.SUCCESS
+                                                } catch (e: Exception) {
+                                                    status = "Download failed: ${e.message}"
+                                                    statusType = StatusType.ERROR
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -238,9 +258,25 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                 modifier = Modifier.weight(1f),
                                 onDownload = { pdf ->
                                     scope.launch {
-                                        download(ip, pdf. name, downloadDir) {
-                                            status = it
-                                            statusType = StatusType.INFO
+                                        saveFile(pdf.name) { file ->
+                                            if (file != null) {
+                                                try {
+                                                    scope.launch {
+
+                                                        val data =
+                                                            client.get("${(ip)}/pdfs/download/${pdf.name}")
+                                                                .body<ByteArray>()
+                                                        file.writeBytes(data)
+
+                                                    }
+
+                                                    status = "Saved to ${file.absolutePath}"
+                                                    statusType = StatusType.SUCCESS
+                                                } catch (e: Exception) {
+                                                    status = "Download failed: ${e.message}"
+                                                    statusType = StatusType.ERROR
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -260,7 +296,9 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                     pickFile { file ->
                                         scope.launch {
                                             try {
-                                                upload(ip, file, "device")
+                                                if (file != null) {
+                                                    upload(ip, file, "device")
+                                                }
                                                 device = getDevice(ip)
                                                 status = "Uploaded to Device successfully!"
                                                 statusType = StatusType.SUCCESS
@@ -271,10 +309,10 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                         }
                                     }
                                 },
-                                modifier = Modifier.weight(1f). height(50.dp)
+                                modifier = Modifier.weight(1f).height(50.dp)
                             ) {
                                 Icon(Icons.Default.Upload, contentDescription = null)
-                                Spacer(Modifier. width(8.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text("Upload to Device")
                             }
 
@@ -284,7 +322,9 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                     pickFile { file ->
                                         scope.launch {
                                             try {
-                                                upload(ip, file, "vault")
+                                                if (file != null) {
+                                                    upload(ip, file, "vault")
+                                                }
                                                 vault = getVault(ip)
                                                 status = "Uploaded to Vault successfully!"
                                                 statusType = StatusType.SUCCESS
@@ -298,7 +338,7 @@ fun PdfSyncContent(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                                 modifier = Modifier.weight(1f).height(50.dp)
                             ) {
                                 Icon(Icons.Default.Lock, contentDescription = null)
-                                Spacer(Modifier. width(8.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text("Upload to Vault")
                             }
                         }
@@ -329,8 +369,8 @@ fun PdfListCard(
         Column(modifier = Modifier.fillMaxSize()) {
             // Header
             Surface(
-                modifier = Modifier. fillMaxWidth(),
-                color = MaterialTheme.colorScheme. secondaryContainer
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -346,7 +386,7 @@ fun PdfListCard(
                         title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme. colorScheme.onSecondaryContainer
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(Modifier.weight(1f))
                     Badge {
@@ -363,24 +403,24 @@ fun PdfListCard(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement. spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FolderOpen,
                             contentDescription = null,
-                            modifier = Modifier.size(48. dp),
-                            tint = MaterialTheme.colorScheme. onSurfaceVariant. copy(alpha = 0.5f)
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         Text(
                             "No PDFs found",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant. copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier. fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -398,9 +438,9 @@ fun PdfListItem(pdf: PdfInfo, onDownload: (PdfInfo) -> Unit) {
     var isDownloading by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier. fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme. colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
@@ -408,24 +448,24 @@ fun PdfListItem(pdf: PdfInfo, onDownload: (PdfInfo) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement. SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                modifier = Modifier. weight(1f),
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.PictureAsPdf,
                     contentDescription = "PDF",
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier. size(32.dp)
+                    modifier = Modifier.size(32.dp)
                 )
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
                         text = pdf.name,
-                        style = MaterialTheme.typography. bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -446,7 +486,7 @@ fun PdfListItem(pdf: PdfInfo, onDownload: (PdfInfo) -> Unit) {
             ) {
                 if (isDownloading) {
                     CircularProgressIndicator(
-                        modifier = Modifier. size(20.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
                 } else {
@@ -462,8 +502,8 @@ fun StatusCard(message: String, type: StatusType) {
     val (color, icon) = when (type) {
         StatusType.SUCCESS -> MaterialTheme.colorScheme.primaryContainer to Icons.Default.CheckCircle
         StatusType.ERROR -> MaterialTheme.colorScheme.errorContainer to Icons.Default.Error
-        StatusType.INFO -> MaterialTheme.colorScheme.tertiaryContainer to Icons.Default. Info
-        StatusType. IDLE -> MaterialTheme.colorScheme.surfaceVariant to Icons.Default. Circle
+        StatusType.INFO -> MaterialTheme.colorScheme.tertiaryContainer to Icons.Default.Info
+        StatusType.IDLE -> MaterialTheme.colorScheme.surfaceVariant to Icons.Default.Circle
     }
 
     Card(
@@ -472,7 +512,7 @@ fun StatusCard(message: String, type: StatusType) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier. padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -502,10 +542,14 @@ fun formatFileSize(bytes: Long): String {
 }
 
 
-fun pickFile(onFilePicked: (File) -> Unit) {
-    val chooser = JFileChooser()
-    chooser.fileSelectionMode = JFileChooser.FILES_ONLY
-    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-        onFilePicked(chooser.selectedFile)
+fun pickFile(onResult: (File?) -> Unit) {
+    val chooser = JFileChooser().apply {
+        fileSelectionMode = JFileChooser.FILES_ONLY
+        dialogTitle = "Select PDF"
     }
+
+    val result = chooser.showOpenDialog(null)
+    if (result == JFileChooser.APPROVE_OPTION) {
+        onResult(chooser.selectedFile)
+    } else onResult(null)
 }

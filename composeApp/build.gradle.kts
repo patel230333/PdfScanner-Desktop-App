@@ -21,6 +21,9 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
 
             implementation("org.jetbrains.compose.material:material-icons-extended:1.6.0")
+//            implementation("org.jetbrains.compose.components:components-resource:1.6.1")
+            implementation("org.jetbrains.compose.components:components-splitpane:1.6.1")
+//            implementation("org.jetbrains.compose.components:components-file-picker:1.6.1")
 
 
             implementation("io.ktor:ktor-client-core:2.3.7")
