@@ -1,14 +1,10 @@
-name: 🔥 Build & Release Desktop Apps
+name: Build & Release Desktop Apps
 
 on:
   push:
     branches: [ master ]
-    # if you want only on tags, replace above with:
-    # tags:
-    #   - "v*"
 
 env:
-  # Simple auto version: 1.0.<run_number>
   APP_VERSION: 1.0.${{ github.run_number }}
 
 jobs:
@@ -29,13 +25,18 @@ jobs:
           ./gradlew packageReleaseMsi
           ./gradlew packageReleaseExe
 
+      - name: ✨ Rename Windows builds
+        run: |
+          powershell -Command "Rename-Item composeApp/build/compose/binaries/main-release/msi/*.msi ScanMate-Windows.msi"
+          powershell -Command "Rename-Item composeApp/build/compose/binaries/main-release/exe/*.exe ScanMate-Windows.exe"
+
       - name: 📦 Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
-            composeApp/build/compose/binaries/main-release/msi/*.msi
-            composeApp/build/compose/binaries/main-release/exe/*.exe
+            composeApp/build/compose/binaries/main-release/msi/ScanMate-Windows.msi
+            composeApp/build/compose/binaries/main-release/exe/ScanMate-Windows.exe
 
   # ================= MACOS =================
   build-macos:
@@ -52,11 +53,15 @@ jobs:
       - name: 🍏 Build macOS (.dmg)
         run: ./gradlew packageReleaseDmg
 
+      - name: ✨ Rename macOS build
+        run: |
+          mv composeApp/build/compose/binaries/main-release/dmg/*.dmg ScanMate-macOS.dmg
+
       - name: 📦 Upload macOS Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
-          path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
+          path: ScanMate-macOS.dmg
 
   # ================= LINUX =================
   build-linux:
@@ -73,11 +78,15 @@ jobs:
       - name: 🐧 Build Linux (.deb)
         run: ./gradlew packageReleaseDeb
 
+      - name: ✨ Rename Linux build
+        run: |
+          mv composeApp/build/compose/binaries/main-release/deb/*.deb ScanMate-Linux.deb
+
       - name: 📦 Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: composeApp/build/compose/binaries/main-release/deb/*.deb
+          path: ScanMate-Linux.deb
 
   # ================= CREATE GITHUB RELEASE =================
   create-release:
@@ -87,36 +96,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ⬇️ Download all artifacts into dist/
       - name: ⬇️ Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-build
-          path: dist/windows
+          path: dist/
 
       - name: ⬇️ Download macOS Artifacts
         uses: actions/download-artifact@v4
         with:
           name: macos-build
-          path: dist/macos
+          path: dist/
 
       - name: ⬇️ Download Linux Artifacts
         uses: actions/download-artifact@v4
         with:
           name: linux-build
-          path: dist/linux
+          path: dist/
 
-      # (Optional) Preview files
-      - name: 📝 List built files
-        run: |
-          echo "Windows:"
-          ls -R dist/windows || true
-          echo "macOS:"
-          ls -R dist/macos || true
-          echo "Linux:"
-          ls -R dist/linux || true
+      - name: 📝 List files
+        run: ls -al dist/
 
-      # 🚀 Create GitHub Release and upload assets
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -125,8 +125,9 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/windows/**
-            dist/macos/**
-            dist/linux/**
+            dist/ScanMate-Windows.exe
+            dist/ScanMate-Windows.msi
+            dist/ScanMate-macOS.dmg
+            dist/ScanMate-Linux.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
